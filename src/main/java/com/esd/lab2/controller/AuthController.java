@@ -1,5 +1,7 @@
 package com.esd.lab2.controller;
 
+import com.esd.lab2.dto.LoginRequest;
+import com.esd.lab2.dto.LoginResponse;
 import com.esd.lab2.dto.SignupRequest;
 import com.esd.lab2.dto.UserResponse;
 import com.esd.lab2.service.AuthService;
@@ -34,5 +36,14 @@ public class AuthController {
     public ResponseEntity<UserResponse> signup(@Valid @RequestBody SignupRequest request) {
         UserResponse response = authService.signup(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * A2 - POST /api/auth/login
+     * Public endpoint. Returns 200 OK with a Bearer token on success.
+     */
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
     }
 }

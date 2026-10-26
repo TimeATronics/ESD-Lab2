@@ -1,11 +1,11 @@
-# REVIEW.md — AI Output Review Log
+# REVIEW.md - AI Output Review Log
 
 Complete **one review entry per slice** before moving to the next.  
 
 
 ---
 
-## Slice 1 — Signup (S1)
+## Slice 1 - Signup (S1)
 
 > S1 is the manual slice in the lab. No AI prompt is recorded in `PROMPTS.md` for this slice.
 
@@ -15,10 +15,10 @@ List every class and method produced for this slice. Tag each one:
 
 | File / Method | Tag | In Allowed List? |
 |---|---|---|
-| `dto/SignupRequest.java` — validation annotations | DTO | Yes |
-| `dto/UserResponse.java` — public response fields | DTO | Yes |
-| `service/AuthService.java` — `signup()` and `toResponse()` | Service | Yes |
-| `controller/AuthController.java` — `signup()` | Controller | Yes |
+| `dto/SignupRequest.java` - validation annotations | DTO | Yes |
+| `dto/UserResponse.java` - public response fields | DTO | Yes |
+| `service/AuthService.java` - `signup()` and `toResponse()` | Service | Yes |
+| `controller/AuthController.java` - `signup()` | Controller | Yes |
 
 > **Important:** Anything **not** in the allowed list → **reject, re-prompt**. Don't keep it because it works.
 
@@ -31,7 +31,7 @@ Compare against API contract row A1 line by line.
 | Returns **201** | Pass |
 | Response shape: `{ id, email, fullName, role, createdAt }` | Pass |
 | No `passwordHash` field in response | Pass |
-| Role in response is always `STUDENT` | Pass — verified with a request containing `"role":"ADMIN"` |
+| Role in response is always `STUDENT` | Pass - verified with a request containing `"role":"ADMIN"` |
 
 ### C. Validation & Errors
 
@@ -39,7 +39,7 @@ Compare against API contract row A1 line by line.
 |---|---|
 | `@Valid` on controller parameter | Pass |
 | `@Email`, `@NotBlank`, `@Size` on DTO fields | Pass |
-| Duplicate email throws `DuplicateResourceException` | Pass — verified case-insensitive duplicate |
+| Duplicate email throws `DuplicateResourceException` | Pass - verified case-insensitive duplicate |
 | No new error/response wrapper class invented | Pass |
 | No stack trace or exception message leaked to client | Pass |
 
@@ -47,8 +47,8 @@ Compare against API contract row A1 line by line.
 
 | Check | Pass / Fail |
 |---|---|
-| Password hashed via injected `PasswordEncoder` (not `new BCryptPasswordEncoder()`) | Pass — stored hashes start with `$2a$10$` |
-| `SignupRequest` has no `role` field, or it is ignored | Pass — no `role` field; extra JSON property is ignored |
+| Password hashed via injected `PasswordEncoder` (not `new BCryptPasswordEncoder()`) | Pass - stored hashes start with `$2a$10$` |
+| `SignupRequest` has no `role` field, or it is ignored | Pass - no `role` field; extra JSON property is ignored |
 | Duplicate check uses normalised (lowercased/trimmed) email | Pass |
 | AI did **not** touch `SecurityConfig`, add JWT class, or add `UserDetailsService` | Pass |
 
@@ -78,64 +78,72 @@ Compare against API contract row A1 line by line.
 
 ---
 
-## Slice 2 — Login & JWT (S2)
+## Slice 2 - Login & JWT (S2)
 
 ### A. Bucket Check
 
 | File / Method | Tag | In Allowed List? |
 |---|---|---|
-| | | |
+| `dto/LoginRequest.java` - validation annotations | DTO | Yes |
+| `dto/LoginResponse.java` - token response fields | DTO | Yes |
+| `security/JwtService.java` - `generateToken()`, `getExpirationSeconds()` | Security | Yes |
+| `service/AuthService.java` - `login()`, `JwtService` dependency | Service | Yes |
+| `controller/AuthController.java` - `login()` | Controller | Yes |
 
 ### B. Contract Check
 
 | Check | Pass / Fail |
 |---|---|
-| Path is `POST /api/auth/login` | |
-| Returns **200** | |
-| Response: `{ accessToken, tokenType: "Bearer", expiresIn }` | |
-| `expiresIn` matches configured value (not hardcoded) | |
+| Path is `POST /api/auth/login` | Pass |
+| Returns **200** | Pass |
+| Response: `{ accessToken, tokenType: "Bearer", expiresIn }` | Pass |
+| `expiresIn` matches configured value (not hardcoded) | Pass - returned 3600, from `jwt.expiration-seconds` |
 
 ### C. Validation & Errors
 
 | Check | Pass / Fail |
 |---|---|
-| Same 401 message for unknown email and wrong password | |
-| No `try/catch` swallowing exceptions silently | |
+| Same 401 message for unknown email and wrong password | Pass - both return `"Invalid email or password"` |
+| No `try/catch` swallowing exceptions silently | Pass |
 
 ### D. Security Specifics
 
 | Check | Pass / Fail |
 |---|---|
-| JWT secret comes from `@Value`, no string literal secret | |
-| Uses jjwt 0.12 API: `.subject()`, `.claim()`, `.id()`, `.issuedAt()`, `.expiration()`, `.signWith(key)` | |
-| Rejects deprecated: `setSubject`, `setExpiration`, `signWith(SignatureAlgorithm.HS256, secret)`, `Jwts.parserBuilder()` | |
-| `jti` is a random UUID (not the user id) | |
-| No password or hash in token claims | |
-| Parse/validate method **not** written yet (that is S3) | |
+| JWT secret comes from `@Value`, no string literal secret | Pass - constructor injection with `@Value("${jwt.secret}")` |
+| Uses jjwt 0.12 API: `.subject()`, `.claim()`, `.id()`, `.issuedAt()`, `.expiration()`, `.signWith(key)` | Pass |
+| Rejects deprecated: `setSubject`, `setExpiration`, `signWith(SignatureAlgorithm.HS256, secret)`, `Jwts.parserBuilder()` | Pass - none used |
+| `jti` is a random UUID (not the user id) | Pass - decoded token contains a UUID |
+| No password or hash in token claims | Pass |
+| Parse/validate method **not** written yet (that is S3) | Pass - `JwtService` only issues tokens |
 
 ### E. Understanding Questions
 
 1. Why must the error message be identical for "no such email" and "wrong password"?
 
-   > *Your answer:*
+   > It prevents user enumeration. An attacker cannot tell whether an email is registered or whether only the password was wrong.
 
 2. Who can read the claims inside your JWT? Who can change them?
 
-   > *Your answer:*
+   > Anyone holding the token can Base64-decode the payload and read the claims. Only a party with the signing secret can produce a valid signature, so a client cannot change claims without invalidating the token.
 
 3. What does `jti` give us that `sub` doesn't? (Think about S5.)
 
-   > *Your answer:*
+   > `sub` identifies the user. `jti` identifies one specific token, so S5 can revoke a single token at logout without invalidating every token issued to that user.
 
 ### F. Decision
 
 | File | Decision | Reason |
 |---|---|---|
-| | | |
+| `dto/LoginRequest.java` | Accepted | Matches the login contract validation rules. |
+| `dto/LoginResponse.java` | Accepted | Returns the token, `Bearer` type, and configured expiry. |
+| `security/JwtService.java` | Accepted | Uses the configured secret and jjwt 0.12 API, with the required claims. |
+| `service/AuthService.java` | Accepted | Uses the same 401 message, verifies BCrypt, and issues the token. |
+| `controller/AuthController.java` | Accepted | Uses `@Valid` and returns HTTP 200. |
 
 ---
 
-## Slice 3 — JWT Filter & Protected API (S3)
+## Slice 3 - JWT Filter & Protected API (S3)
 
 ### A. Bucket Check
 
@@ -156,7 +164,7 @@ Compare against API contract row A1 line by line.
 
 | Check | Pass / Fail |
 |---|---|
-| Filter does not write a response on error — continues chain | |
+| Filter does not write a response on error - continues chain | |
 | Filter clears SecurityContext on bad token | |
 
 ### D. Security Specifics
@@ -195,7 +203,7 @@ Compare against API contract row A1 line by line.
 
 ---
 
-## Slice 4 — Role Restriction (S4)
+## Slice 4 - Role Restriction (S4)
 
 ### A. Bucket Check
 
@@ -219,7 +227,7 @@ Compare against API contract row A1 line by line.
 | Role naming consistent: `hasRole("ADMIN")` ↔ authority `ROLE_ADMIN` | |
 | If `@PreAuthorize` used: `@EnableMethodSecurity` is present | |
 | Rule placed **before** `anyRequest().authenticated()` if in SecurityConfig | |
-| Diff is small — AI did not rewrite the whole config | |
+| Diff is small - AI did not rewrite the whole config | |
 
 ### E. Understanding Questions
 
@@ -239,7 +247,7 @@ Compare against API contract row A1 line by line.
 
 ---
 
-## Slice 5 — Logout (S5) *(stretch)*
+## Slice 5 - Logout (S5) *(stretch)*
 
 ### A. Bucket Check
 

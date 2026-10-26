@@ -1,11 +1,15 @@
 package com.esd.lab2.service;
 
+import com.esd.lab2.dto.LoginRequest;
+import com.esd.lab2.dto.LoginResponse;
 import com.esd.lab2.dto.SignupRequest;
 import com.esd.lab2.dto.UserResponse;
 import com.esd.lab2.entity.Role;
 import com.esd.lab2.entity.User;
 import com.esd.lab2.exception.DuplicateResourceException;
+import com.esd.lab2.exception.InvalidCredentialsException;
 import com.esd.lab2.repository.UserRepository;
+import com.esd.lab2.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -20,12 +24,18 @@ import java.util.Locale;
 @Service
 public class AuthService {
 
+    private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid email or password";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     /**
@@ -56,6 +66,28 @@ public class AuthService {
 
         // 5. Map to the public response DTO.
         return toResponse(saved);
+    }
+
+    /**
+     * Authenticates a user and issues a JWT.
+     *
+     * The same exception and message are used for an unknown email and a wrong
+     * password, so the response does not reveal which one failed.
+     */
+    public LoginResponse login(LoginRequest request) {
+        // Normalise the email exactly like signup does.
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+
+        // Unknown email and wrong password both produce the same 401 response.
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS_MESSAGE));
+
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new InvalidCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+        }
+
+        String accessToken = jwtService.generateToken(user);
+        return new LoginResponse(accessToken, "Bearer", jwtService.getExpirationSeconds());
     }
 
     // Mapping
