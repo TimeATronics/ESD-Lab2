@@ -370,3 +370,102 @@ HTTP/1.1 201
 - POST `/api/courses` is not public and returns 401 without a token.
 - The 401 response body is an `ApiError` JSON object.
 - The filter does not write the 401 response. The entry point does.
+
+---
+
+## Slice 4 - Admin-only Course Creation
+
+Student token:
+
+```text
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6IjExOGJlZDBmLTA1NjEtNGFmMC1hMDNmLWY5NDljMDRhNjQ1MiIsImlhdCI6MTc5MzAxNDUzOCwiZXhwIjoxNzkzMDE4MTM4fQ.hygJFbvwl4iudQMdKpul394e5P37jsFUPTwIL18KJEc
+```
+
+Admin token:
+
+```text
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBlc2QubG9jYWwiLCJyb2xlIjoiQURNSU4iLCJqdGkiOiI5M2FjZDJlMS0xYTdmLTQwYmEtYjk5Ny0yZjMwZjdmMWQ3YjYiLCJpYXQiOjE3OTMwMTQ1MzksImV4cCI6MTc5MzAxODEzOX0.Xj1zjwWNVLLpYl1tbsoqJPW7LNxy-kKdEW9otnHBt-8
+```
+
+### 1. POST /api/courses without token - expect 401
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/courses" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"code\":\"S4-NOAUTH\",\"title\":\"No Auth\",\"description\":\"test\"}"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014539.574060700,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/courses","fieldErrors":null}
+```
+
+### 2. POST /api/courses with a STUDENT token - expect 403
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/courses" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6IjExOGJlZDBmLTA1NjEtNGFmMC1hMDNmLWY5NDljMDRhNjQ1MiIsImlhdCI6MTc5MzAxNDUzOCwiZXhwIjoxNzkzMDE4MTM4fQ.hygJFbvwl4iudQMdKpul394e5P37jsFUPTwIL18KJEc" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"code\":\"S4-STUDENT\",\"title\":\"Student\",\"description\":\"test\"}"
+```
+
+```text
+HTTP/1.1 403
+
+{"timestamp":1793014539.788069800,"status":403,"error":"Forbidden","message":"You do not have permission to access this resource","path":"/api/courses","fieldErrors":null}
+```
+
+### 3. POST /api/courses with an ADMIN token - expect 201
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/courses" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBlc2QubG9jYWwiLCJyb2xlIjoiQURNSU4iLCJqdGkiOiI5M2FjZDJlMS0xYTdmLTQwYmEtYjk5Ny0yZjMwZjdmMWQ3YjYiLCJpYXQiOjE3OTMwMTQ1MzksImV4cCI6MTc5MzAxODEzOX0.Xj1zjwWNVLLpYl1tbsoqJPW7LNxy-kKdEW9otnHBt-8" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"code\":\"S4-ADMIN\",\"title\":\"Admin\",\"description\":\"test\"}"
+```
+
+```text
+HTTP/1.1 201
+
+{"id":1,"code":"S4-ADMIN","title":"Admin","description":"test"}
+```
+
+### 4. Duplicate course code with an ADMIN token - expect 409
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/courses" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBlc2QubG9jYWwiLCJyb2xlIjoiQURNSU4iLCJqdGkiOiI5M2FjZDJlMS0xYTdmLTQwYmEtYjk5Ny0yZjMwZjdmMWQ3YjYiLCJpYXQiOjE3OTMwMTQ1MzksImV4cCI6MTc5MzAxODEzOX0.Xj1zjwWNVLLpYl1tbsoqJPW7LNxy-kKdEW9otnHBt-8" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"code\":\"S4-ADMIN\",\"title\":\"Admin\",\"description\":\"test\"}"
+```
+
+```text
+HTTP/1.1 409
+
+{"timestamp":"2026-10-26T11:35:40.058777500Z","status":409,"error":"Conflict","message":"Course with code 'S4-ADMIN' already exists","path":"/api/courses","fieldErrors":null}
+```
+
+### 5. Invalid course body with an ADMIN token - expect 400
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/courses" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBlc2QubG9jYWwiLCJyb2xlIjoiQURNSU4iLCJqdGkiOiI5M2FjZDJlMS0xYTdmLTQwYmEtYjk5Ny0yZjMwZjdmMWQ3YjYiLCJpYXQiOjE3OTMwMTQ1MzksImV4cCI6MTc5MzAxODEzOX0.Xj1zjwWNVLLpYl1tbsoqJPW7LNxy-kKdEW9otnHBt-8" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"code\":\"S4-BAD\",\"description\":\"missing title\"}"
+```
+
+```text
+HTTP/1.1 400
+
+{"timestamp":"2026-10-26T11:35:46.105422600Z","status":400,"error":"Bad Request","message":"Validation failed","path":"/api/courses","fieldErrors":{"title":"Title is required"}}
+```
+
+### S4 checks
+
+- No token returns 401.
+- STUDENT token returns 403 with an `ApiError` body.
+- ADMIN token returns 201 with the created course.
+- ADMIN duplicate code returns 409.
+- ADMIN invalid body returns 400 with a field error.
+- The role check uses `hasRole("ADMIN")`, which matches the `ROLE_ADMIN` authority from the filter.

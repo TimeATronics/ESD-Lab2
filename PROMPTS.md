@@ -217,13 +217,46 @@ No follow-up was needed. The output matched the contract and review checklist.
 **Prompt 1:**
 
 ```
-(paste your prompt here)
+CONTEXT
+Spring Boot 3.2.5, Spring Security 6, Java 17. No other libraries.
+Current code:
+- SecurityConfig is a stateless JWT chain.
+- Public: POST /api/auth/signup, POST /api/auth/login, GET /api/courses.
+- JwtAuthenticationFilter sets authority ROLE_<role> from the token.
+- CourseController already has POST /api/courses, uses @Valid CourseRequest, and returns 201.
+- CourseService.create handles duplicate codes with DuplicateResourceException.
+
+TASK
+Restrict POST /api/courses to users with the ADMIN role.
+Contract:
+  No token: 401.
+  STUDENT token: 403 with an ApiError body.
+  ADMIN token: 201 CourseResponse.
+  ADMIN duplicate code: 409.
+  ADMIN invalid body: 400.
+Change only the authorization rule:
+  .requestMatchers(HttpMethod.POST, "/api/courses").hasRole("ADMIN")
+Place it immediately before .anyRequest().authenticated().
+
+ALLOWED TO CREATE OR CHANGE
+config/SecurityConfig.java (filterChain authorization rule only)
+
+RULES
+- Do not modify CourseController, CourseService, or any other file.
+- Do not rewrite the security chain.
+- Use hasRole("ADMIN"), which checks ROLE_ADMIN.
+- Keep all existing public matchers and the JWT filter.
+- Do not add dependencies.
+- If something is unclear, add a TODO comment instead of guessing.
+
+OUTPUT
+The complete SecurityConfig.java and a list of assumptions.
 ```
 
 **Follow-up (if any):**
 
 ```
-(paste here)
+No follow-up was needed. The rule was a small change and matched the review checklist.
 ```
 
 ---

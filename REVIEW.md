@@ -215,41 +215,55 @@ Compare against API contract row A1 line by line.
 
 | File / Method | Tag | In Allowed List? |
 |---|---|---|
-| | | |
+| `config/SecurityConfig.java` - `filterChain()` authorization rule | Config | Yes |
+| `controller/CourseController.java` - `createCourse()` | Controller | Already provided, unchanged |
+| `service/CourseService.java` - `create()` | Service | Already provided, unchanged |
 
 ### B. Contract Check
 
 | Check | Pass / Fail |
 |---|---|
-| `POST /api/courses` with no token → **401** | |
-| `POST /api/courses` with STUDENT token → **403** | |
-| `POST /api/courses` with ADMIN token → **201** | |
-| 403 body is an `ApiError` JSON object | |
+| `POST /api/courses` with no token → **401** | Pass |
+| `POST /api/courses` with STUDENT token → **403** | Pass |
+| `POST /api/courses` with ADMIN token → **201** | Pass |
+| 403 body is an `ApiError` JSON object | Pass |
+
+### C. Validation & Errors
+
+| Check | Pass / Fail |
+|---|---|
+| `@Valid` on the course request body | Pass - provided in `CourseController` |
+| Invalid course body returns 400 with field errors | Pass |
+| Duplicate course code returns 409 | Pass |
+| No new error or response wrapper class | Pass |
+| Response is `CourseResponse`, not the entity | Pass |
 
 ### D. Security Specifics
 
 | Check | Pass / Fail |
 |---|---|
-| Role naming consistent: `hasRole("ADMIN")` ↔ authority `ROLE_ADMIN` | |
-| If `@PreAuthorize` used: `@EnableMethodSecurity` is present | |
-| Rule placed **before** `anyRequest().authenticated()` if in SecurityConfig | |
-| Diff is small - AI did not rewrite the whole config | |
+| Role naming consistent: `hasRole("ADMIN")` ↔ authority `ROLE_ADMIN` | Pass |
+| If `@PreAuthorize` used: `@EnableMethodSecurity` is present | Not used. The rule is in `SecurityConfig`. |
+| Rule placed **before** `anyRequest().authenticated()` if in SecurityConfig | Pass |
+| Diff is small - AI did not rewrite the whole config | Pass - one matcher added |
 
 ### E. Understanding Questions
 
 1. A STUDENT calls `POST /api/courses`. Why does the server return 403 and not 401?
 
-   > *Your answer:*
+   > The student token is valid, so authentication succeeds. The request then fails the `hasRole("ADMIN")` authorization check. A 401 would mean the request had no valid authentication.
 
 2. Where does the role in the JWT come from, and can the client change it?
 
-   > *Your answer:*
+   > The role claim is set at login from the user's database role. A client can read the claim, but changing it invalidates the signature. The server only trusts claims from a token signed with its secret.
 
 ### F. Decision
 
 | File | Decision | Reason |
 |---|---|---|
-| | | |
+| `config/SecurityConfig.java` | Accepted | Added the ADMIN rule before `anyRequest().authenticated()`. Public matchers and the JWT filter are unchanged. |
+| `controller/CourseController.java` | Accepted | Already validates the request, returns 201, and uses `CourseResponse`. No change needed. |
+| `service/CourseService.java` | Accepted | Already throws `DuplicateResourceException` for duplicate codes. No change needed. |
 
 ---
 
