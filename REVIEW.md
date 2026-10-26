@@ -7,13 +7,18 @@ Complete **one review entry per slice** before moving to the next.
 
 ## Slice 1 — Signup (S1)
 
+> S1 is the manual slice in the lab. No AI prompt is recorded in `PROMPTS.md` for this slice.
+
 ### A. Bucket Check
-List every class and method the AI produced. Tag each one:  
+List every class and method produced for this slice. Tag each one:  
 `Controller` / `Service` / `Repository` / `DTO` / `Security` / `Config` / `Exception`
 
 | File / Method | Tag | In Allowed List? |
 |---|---|---|
-| | | |
+| `dto/SignupRequest.java` — validation annotations | DTO | Yes |
+| `dto/UserResponse.java` — public response fields | DTO | Yes |
+| `service/AuthService.java` — `signup()` and `toResponse()` | Service | Yes |
+| `controller/AuthController.java` — `signup()` | Controller | Yes |
 
 > **Important:** Anything **not** in the allowed list → **reject, re-prompt**. Don't keep it because it works.
 
@@ -22,51 +27,54 @@ Compare against API contract row A1 line by line.
 
 | Check | Pass / Fail |
 |---|---|
-| Path is `POST /api/auth/signup` | |
-| Returns **201** | |
-| Response shape: `{ id, email, fullName, role, createdAt }` | |
-| No `passwordHash` field in response | |
-| Role in response is always `STUDENT` | |
+| Path is `POST /api/auth/signup` | Pass |
+| Returns **201** | Pass |
+| Response shape: `{ id, email, fullName, role, createdAt }` | Pass |
+| No `passwordHash` field in response | Pass |
+| Role in response is always `STUDENT` | Pass — verified with a request containing `"role":"ADMIN"` |
 
 ### C. Validation & Errors
 
 | Check | Pass / Fail |
 |---|---|
-| `@Valid` on controller parameter | |
-| `@Email`, `@NotBlank`, `@Size` on DTO fields | |
-| Duplicate email throws `DuplicateResourceException` | |
-| No new error/response wrapper class invented | |
-| No stack trace or exception message leaked to client | |
+| `@Valid` on controller parameter | Pass |
+| `@Email`, `@NotBlank`, `@Size` on DTO fields | Pass |
+| Duplicate email throws `DuplicateResourceException` | Pass — verified case-insensitive duplicate |
+| No new error/response wrapper class invented | Pass |
+| No stack trace or exception message leaked to client | Pass |
 
 ### D. Security Specifics
 
 | Check | Pass / Fail |
 |---|---|
-| Password hashed via injected `PasswordEncoder` (not `new BCryptPasswordEncoder()`) | |
-| `SignupRequest` has no `role` field, or it is ignored | |
-| Duplicate check uses normalised (lowercased/trimmed) email | |
-| AI did **not** touch `SecurityConfig`, add JWT class, or add `UserDetailsService` | |
+| Password hashed via injected `PasswordEncoder` (not `new BCryptPasswordEncoder()`) | Pass — stored hashes start with `$2a$10$` |
+| `SignupRequest` has no `role` field, or it is ignored | Pass — no `role` field; extra JSON property is ignored |
+| Duplicate check uses normalised (lowercased/trimmed) email | Pass |
+| AI did **not** touch `SecurityConfig`, add JWT class, or add `UserDetailsService` | Pass |
 
 ### E. Understanding Questions
 *Answer in your own words (1–2 lines each)*
 
 1. Where exactly is the password hashed, and why is the same password stored as a different string for two users?
 
-   > *Your answer:*
+   > The password is hashed in `AuthService.signup()` using the injected `PasswordEncoder` bean (`BCryptPasswordEncoder`). BCrypt generates a random salt for each hash, so the same password produces a different stored string each time.
 
 2. What would happen if `SignupRequest` accepted a `role` field and the AI used it?
 
-   > *Your answer:*
+   > A caller could request `ADMIN` during signup and escalate their own privileges. Signup must always assign `Role.STUDENT` and ignore any role supplied by the client.
 
 3. Which class turns `DuplicateResourceException` into a 409 response?
 
-   > *Your answer:*
+   > `GlobalExceptionHandler.handleDuplicate()` maps `DuplicateResourceException` to HTTP 409 with the standard `ApiError` body.
 
 ### F. Decision
 
 | File | Decision | Reason (if modified/rejected) |
 |---|---|---|
-| | Accepted / Modified / Rejected | |
+| `dto/SignupRequest.java` | Accepted | Contains the required validation annotations and no `role` field. |
+| `dto/UserResponse.java` | Accepted | Exposes only public user fields; no password hash. |
+| `service/AuthService.java` | Accepted | Normalises email, checks duplicates, hashes with the injected encoder, assigns `STUDENT`, and returns a DTO. |
+| `controller/AuthController.java` | Accepted | Uses `@Valid` and returns HTTP 201 Created. |
 
 ---
 

@@ -3,17 +3,18 @@ package com.esd.lab2.controller;
 import com.esd.lab2.dto.SignupRequest;
 import com.esd.lab2.dto.UserResponse;
 import com.esd.lab2.service.AuthService;
+
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * S1 — FILL IN MANUALLY (no AI for this slice).
+ * Authentication endpoints.
  *
- * This controller handles all /api/auth endpoints.
- * In S1 you add the signup endpoint.
- * In S2 (AI) you will add login and later logout.
- *
+ * Slice 1: POST /api/auth/signup.
+ * Slice 2 will add POST /api/auth/login.
+ * Slice 5 will add POST /api/auth/logout.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -26,15 +27,12 @@ public class AuthController {
     }
 
     /**
-     * A1 — POST /api/auth/signup
-     * Public endpoint. Returns 201 with UserResponse on success.
+     * A1 - POST /api/auth/signup
+     * Public endpoint. Returns 201 Created with the public UserResponse.
      */
     @PostMapping("/signup")
     public ResponseEntity<UserResponse> signup(@Valid @RequestBody SignupRequest request) {
-        // TODO: call authService.signup(request) and return 201 with the result
-        return null;
+        UserResponse response = authService.signup(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
-
-    // S2: login endpoint will be added here by AI
-    // S5: logout endpoint will be added here by AI
 }

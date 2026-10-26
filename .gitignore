@@ -13,6 +13,9 @@ target/
 ### VS Code ###
 .vscode/
 
+### Local editor state ###
+.vim/
+
 ### STS ###
 .apt_generated
 .classpath

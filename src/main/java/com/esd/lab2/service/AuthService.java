@@ -9,20 +9,13 @@ import com.esd.lab2.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Locale;
+
 /**
- * S1 — FILL IN MANUALLY (no AI for this slice).
+ * Business logic for authentication.
  *
- * Steps to implement signup():
- *   1. Normalise the email: trim it and convert to lowercase.
- *   2. Check if the email already exists using userRepository.existsByEmail(...).
- *      If it does, throw DuplicateResourceException with a helpful message.
- *   3. Hash the password using passwordEncoder.encode(...).
- *      Never store plaintext. Never use new BCryptPasswordEncoder() — use the injected bean.
- *   4. Create a new User entity. Role must always be STUDENT — do not read role from the request.
- *   5. Save the user with userRepository.save(...).
- *   6. Return a UserResponse built from the saved entity.
- *
- * S2 onwards: login() and other methods will be added here by AI.
+ * Slice 1: signup only.
+ * Slice 2 will add login() and JWT issuing to this class.
  */
 @Service
 public class AuthService {
@@ -31,33 +24,48 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository  = userRepository;
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     /**
-     * Registers a new user. Role is always STUDENT regardless of what the request contains.
+     * Registers a new user.
+     *
+     * Steps:
+     *  1. Normalise the email: trim whitespace and convert to lowercase.
+     *  2. Reject an email that already exists with DuplicateResourceException (409).
+     *  3. Hash the password with the injected PasswordEncoder bean (BCrypt).
+     *  4. Save a new User with Role.STUDENT. The role is never read from the request.
+     *  5. Return a UserResponse; never return the User entity.
      */
     public UserResponse signup(SignupRequest request) {
-        // TODO 1: normalise the email (trim + lowercase)
-        String email = null;
+        // 1. Normalise so that Alice@test.com and alice@test.com are the same user.
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
 
-        // TODO 2: check for duplicate email and throw DuplicateResourceException if found
+        // 2. Duplicate check must use the normalised email.
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException("Email already registered");
+        }
 
-        // TODO 3: hash the password using the injected passwordEncoder bean
-        String hashedPassword = null;
+        // 3. Hash the password using the injected encoder. Never store plaintext.
+        String passwordHash = passwordEncoder.encode(request.password());
 
-        // TODO 4: build and save the User entity (role = Role.STUDENT always)
-        User user = null;
+        // 4. Build and save the entity. Signup always creates a STUDENT.
+        User user = new User(email, passwordHash, request.fullName(), Role.STUDENT);
+        User saved = userRepository.save(user);
 
-        // TODO 5: return a UserResponse — never return the User entity directly
-        return null;
+        // 5. Map to the public response DTO.
+        return toResponse(saved);
     }
 
-    // ── helper ────────────────────────────────────────────────────────────────
-
+    // Mapping
     private UserResponse toResponse(User user) {
-        // TODO: map User entity fields to UserResponse record
-        return null;
+        return new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole(),
+                user.getCreatedAt()
+        );
     }
 }
