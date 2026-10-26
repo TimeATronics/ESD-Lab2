@@ -11,10 +11,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Provides GET /api/courses (public) and POST /api/courses (currently unprotected).
+ * Course catalogue endpoints.
  *
- * NOTE: In Slice 4 you will restrict POST /api/courses to ADMIN users only.
- *       Do NOT modify this file until you reach Slice 4.
+ * GET /api/courses and GET /api/courses/{id} are public.
+ * POST /api/courses requires the ADMIN role.
  */
 @RestController
 @RequestMapping("/api/courses")
@@ -26,13 +26,19 @@ public class CourseController {
         this.courseService = courseService;
     }
 
-    /** P1 – public */
+    /** P1 - public list */
     @GetMapping
     public ResponseEntity<List<CourseResponse>> listCourses() {
         return ResponseEntity.ok(courseService.findAll());
     }
 
-    /** P3 – will be ADMIN-only after Slice 4 */
+    /** P1 - public lookup by id */
+    @GetMapping("/{id}")
+    public ResponseEntity<CourseResponse> getCourse(@PathVariable Long id) {
+        return ResponseEntity.ok(courseService.findById(id));
+    }
+
+    /** P3 - ADMIN only */
     @PostMapping
     public ResponseEntity<CourseResponse> createCourse(@Valid @RequestBody CourseRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(courseService.create(request));

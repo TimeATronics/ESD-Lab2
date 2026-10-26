@@ -19,7 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Stateless JWT security configuration.
  *
- * Public endpoints: signup, login, and GET /api/courses.
+ * Public endpoints: signup, login, GET /api/courses, and GET /api/courses/{id}.
  * POST /api/courses requires the ADMIN role.
  */
 @Configuration
@@ -49,7 +49,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/signup", "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/courses", "/api/courses/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/courses").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

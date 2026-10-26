@@ -573,3 +573,64 @@ HTTP/1.1 401
 - The logout endpoint is protected, not under `permitAll`.
 - The filter checks the denylist before setting authentication.
 - Expired entries are removed from the map.
+
+---
+
+## No-AI Change - Public Course Lookup by ID
+
+### 1. GET /api/courses/1 without token - expect 200
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/courses/1"
+```
+
+```text
+HTTP/1.1 200
+
+{"id":1,"code":"S4-ADMIN","title":"Admin","description":"test"}
+```
+
+### 2. GET /api/courses/999999 without token - expect 404
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/courses/999999"
+```
+
+```text
+HTTP/1.1 404
+
+{"timestamp":"2026-10-26T11:45:11.440954300Z","status":404,"error":"Not Found","message":"Course not found: 999999","path":"/api/courses/999999","fieldErrors":null}
+```
+
+### 3. GET /api/courses without token - expect 200
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/courses"
+```
+
+```text
+HTTP/1.1 200
+
+[{"id":1,"code":"S4-ADMIN","title":"Admin","description":"test"}]
+```
+
+### 4. POST /api/courses without token - expect 401
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/courses" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"code\":\"NOAI-POST\",\"title\":\"No AI\",\"description\":\"test\"}"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793015111.601244500,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/courses","fieldErrors":null}
+```
+
+### No-AI checks
+
+- Public GET `/api/courses/{id}` works without a token.
+- A missing id returns 404 through `ResourceNotFoundException`.
+- POST `/api/courses` remains protected, so the new matcher did not open course creation.
+- The existing list endpoint still works.

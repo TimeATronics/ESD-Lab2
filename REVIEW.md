@@ -334,13 +334,14 @@ Compare against API contract row A1 line by line.
 
 ## No-AI Change Tasks
 
-
+Chosen option: 2. Add a public `GET /api/courses/{id}` endpoint with 404 through `ResourceNotFoundException`.
 
 **Files changed:**
 
 | File | What changed and why |
 |---|---|
-| | |
+| `controller/CourseController.java` | Added `GET /api/courses/{id}` and called the existing `CourseService.findById()`. |
+| `config/SecurityConfig.java` | Allowed public `GET /api/courses/*` while keeping `POST /api/courses` ADMIN-only. |
 
 **Explanation (your own words):**
-> *Describe what you changed and why it works.*
+> The service already had `findById()` and threw `ResourceNotFoundException` when the id was missing, so the controller only needed a new mapping. The security matcher is method-specific and limited to GET, so the ADMIN rule for POST remains in place. A missing id returns 404 with the standard `ApiError`.
