@@ -1,5 +1,7 @@
 # API Test Outputs
 
+> Note: The JWT tokens in this file were produced during local testing. They do not correspond to real accounts, secrets, or credentials. They are included for completeness.
+
 ## Slice 1 - Signup
 
 ### 1. Valid signup - expect 201
@@ -469,3 +471,105 @@ HTTP/1.1 400
 - ADMIN duplicate code returns 409.
 - ADMIN invalid body returns 400 with a field error.
 - The role check uses `hasRole("ADMIN")`, which matches the `ROLE_ADMIN` authority from the filter.
+
+---
+
+## Slice 5 - Logout and Token Denylist
+
+Token used for the logout test:
+
+```text
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6IjNjMDIyYWQ2LTEzNDQtNDc5Mi05YTYyLWNhMzg4MGY0MmEzYSIsImlhdCI6MTc5MzAxNDk0NywiZXhwIjoxNzkzMDE4NTQ3fQ.ZIdizyNf60Jaoy3CJ2baNLD-ZuXvPyuwUWSXqL7Pefs
+```
+
+Fresh token issued after logout:
+
+```text
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6ImE0NjViNGFkLTcyMDctNGE3MC1iNTUwLTMyY2NlMTc5Y2ZiNSIsImlhdCI6MTc5MzAxNDk0OCwiZXhwIjoxNzkzMDE4NTQ4fQ.sTmVlaOAOKuou7R_K5HDjmwdZASrSh6SsLb2QrAihkk
+```
+
+### 1. GET /api/users/me before logout - expect 200
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/users/me" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6IjNjMDIyYWQ2LTEzNDQtNDc5Mi05YTYyLWNhMzg4MGY0MmEzYSIsImlhdCI6MTc5MzAxNDk0NywiZXhwIjoxNzkzMDE4NTQ3fQ.ZIdizyNf60Jaoy3CJ2baNLD-ZuXvPyuwUWSXqL7Pefs"
+```
+
+```text
+HTTP/1.1 200
+
+{"id":6,"email":"s1.output@test.com","fullName":"S1 Output","role":"STUDENT","createdAt":"2026-10-26T11:16:21.470817Z"}
+```
+
+### 2. POST /api/auth/logout - expect 204
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/auth/logout" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6IjNjMDIyYWQ2LTEzNDQtNDc5Mi05YTYyLWNhMzg4MGY0MmEzYSIsImlhdCI6MTc5MzAxNDk0NywiZXhwIjoxNzkzMDE4NTQ3fQ.ZIdizyNf60Jaoy3CJ2baNLD-ZuXvPyuwUWSXqL7Pefs"
+```
+
+```text
+HTTP/1.1 204
+```
+
+### 3. GET /api/users/me after logout with the same token - expect 401
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/users/me" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6IjNjMDIyYWQ2LTEzNDQtNDc5Mi05YTYyLWNhMzg4MGY0MmEzYSIsImlhdCI6MTc5MzAxNDk0NywiZXhwIjoxNzkzMDE4NTQ3fQ.ZIdizyNf60Jaoy3CJ2baNLD-ZuXvPyuwUWSXqL7Pefs"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014948.398631500,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/users/me","fieldErrors":null}
+```
+
+### 4. Fresh login and GET /api/users/me - expect 200
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/users/me" ^
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6ImE0NjViNGFkLTcyMDctNGE3MC1iNTUwLTMyY2NlMTc5Y2ZiNSIsImlhdCI6MTc5MzAxNDk0OCwiZXhwIjoxNzkzMDE4NTQ4fQ.sTmVlaOAOKuou7R_K5HDjmwdZASrSh6SsLb2QrAihkk"
+```
+
+```text
+HTTP/1.1 200
+
+{"id":6,"email":"s1.output@test.com","fullName":"S1 Output","role":"STUDENT","createdAt":"2026-10-26T11:16:21.470817Z"}
+```
+
+### 5. POST /api/auth/logout without a token - expect 401
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/auth/logout"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014948.468054500,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/auth/logout","fieldErrors":null}
+```
+
+### 6. POST /api/auth/logout with a garbage token - expect 401
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/auth/logout" ^
+  -H "Authorization: Bearer not-a-jwt"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014948.514582300,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/auth/logout","fieldErrors":null}
+```
+
+### S5 checks
+
+- Logout adds the token's `jti` to the server-side denylist.
+- The same token returns 401 on every protected endpoint after logout.
+- A fresh login produces a new token that works.
+- The denylist is keyed by `jti`, not by email.
+- The map is a `ConcurrentHashMap`.
+- The logout endpoint is protected, not under `permitAll`.
+- The filter checks the denylist before setting authentication.
+- Expired entries are removed from the map.

@@ -273,46 +273,62 @@ Compare against API contract row A1 line by line.
 
 | File / Method | Tag | In Allowed List? |
 |---|---|---|
-| | | |
+| `security/TokenDenylist.java` - `revoke()`, `isRevoked()`, `cleanExpired()` | Security | Yes |
+| `security/JwtAuthenticationFilter.java` - denylist check and constructor | Security | Yes |
+| `controller/AuthController.java` - `logout()` and dependencies | Controller | Yes |
+| `config/SecurityConfig.java` - filter wiring | Config | Yes, required to pass the denylist into the filter |
 
 ### B. Contract Check
 
 | Check | Pass / Fail |
 |---|---|
-| `POST /api/auth/logout` returns **204** | |
-| Same token returns **401** after logout | |
-| Fresh login after logout returns a new working token | |
+| `POST /api/auth/logout` returns **204** | Pass |
+| Same token returns **401** after logout | Pass |
+| Fresh login after logout returns a new working token | Pass |
+
+### C. Validation & Errors
+
+| Check | Pass / Fail |
+|---|---|
+| Logout without a token returns 401 | Pass |
+| Logout with a garbage token returns 401 | Pass |
+| No new error or response wrapper class | Pass |
+| Filter clears the context and continues the chain | Pass |
+| 204 response has no body | Pass |
 
 ### D. Security Specifics
 
 | Check | Pass / Fail |
 |---|---|
-| Logout adds entry to server-side denylist (not just tells client to delete token) | |
-| Denylist keyed by **jti**, not email | |
-| Map is `ConcurrentHashMap` (thread-safe) | |
-| Logout endpoint is NOT under `permitAll` | |
-| Filter checks the denylist and treats denylisted jti as invalid | |
-| (Bonus) Expired entries are removed from the map | |
+| Logout adds an entry to the server-side denylist (not just tells the client to delete the token) | Pass |
+| Denylist keyed by **jti**, not email | Pass |
+| Map is `ConcurrentHashMap` (thread-safe) | Pass |
+| Logout endpoint is NOT under `permitAll` | Pass |
+| Filter checks the denylist and treats a denylisted jti as invalid | Pass |
+| (Bonus) Expired entries are removed from the map | Pass |
 
 ### E. Understanding Questions
 
 1. Why does logout need server-side state if JWT is "stateless"?
 
-   > *Your answer:*
+   > A JWT stays valid until its expiry unless the server keeps a record of revoked tokens. The denylist stores the revoked `jti` so the filter can reject that token immediately.
 
 2. What happens to the denylist when the server restarts? What if there are two server instances?
 
-   > *Your answer:*
+   > An in-memory denylist is cleared on restart, so revoked tokens become usable again until they expire. With multiple instances, each has its own map, so a shared store such as Redis or a database is needed for consistent revocation.
 
 3. Why store the expiry time with each jti?
 
-   > *Your answer:*
+   > The token's own expiry tells the server when the denylist entry is no longer needed. Cleaning expired entries prevents the map from growing without bound.
 
 ### F. Decision
 
 | File | Decision | Reason |
 |---|---|---|
-| | | |
+| `security/TokenDenylist.java` | Accepted | Uses a `ConcurrentHashMap` keyed by `jti` and removes expired entries. |
+| `security/JwtAuthenticationFilter.java` | Accepted | Checks the denylist, clears the context for revoked tokens, and continues the chain. |
+| `controller/AuthController.java` | Accepted | Parses the current token, revokes its `jti`, and returns 204. |
+| `config/SecurityConfig.java` | Accepted | Passes the denylist into the filter. The logout endpoint stays protected. |
 
 ---
 

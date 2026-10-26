@@ -4,6 +4,7 @@ import com.esd.lab2.security.JsonAccessDeniedHandler;
 import com.esd.lab2.security.JsonAuthenticationEntryPoint;
 import com.esd.lab2.security.JwtAuthenticationFilter;
 import com.esd.lab2.security.JwtService;
+import com.esd.lab2.security.TokenDenylist;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -34,11 +35,12 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(
             HttpSecurity http,
             JwtService jwtService,
+            TokenDenylist tokenDenylist,
             JsonAuthenticationEntryPoint authenticationEntryPoint,
             JsonAccessDeniedHandler accessDeniedHandler) throws Exception {
 
         JwtAuthenticationFilter jwtAuthenticationFilter =
-                new JwtAuthenticationFilter(jwtService);
+                new JwtAuthenticationFilter(jwtService, tokenDenylist);
 
         http
                 .csrf(csrf -> csrf.disable())

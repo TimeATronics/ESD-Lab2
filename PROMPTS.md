@@ -266,11 +266,62 @@ No follow-up was needed. The rule was a small change and matched the review chec
 **Prompt 1:**
 
 ```
-(paste your prompt here)
+CONTEXT
+Spring Boot 3.2.5, Spring Security 6, Java 17, jjwt 0.12.6.
+Current code:
+- JwtService.parseToken(token) verifies the signature and expiry and returns Claims.
+- JwtAuthenticationFilter validates Bearer tokens and sets authentication.
+- AuthController has signup and login.
+- SecurityConfig requires authentication for anyRequest except the three public endpoints.
+- Tokens contain jti and exp claims.
+
+TASK
+Implement server-side logout with an in-memory JWT denylist.
+Contract:
+  POST /api/auth/logout requires a valid Bearer token.
+  Success: 204 No Content.
+  After logout, the same token gets 401 on every protected endpoint.
+  A fresh login issues a new working token.
+
+Implement:
+1. Create TokenDenylist as an in-memory @Component.
+   - Use ConcurrentHashMap<String, Instant> keyed by jti.
+   - revoke(jti, expiry) stores the entry.
+   - isRevoked(jti) returns true only until the stored expiry.
+   - cleanExpired() removes entries whose expiry has passed.
+2. Add AuthController.logout.
+   - Read the Bearer token from the Authorization header.
+   - Parse the claims and read jti and exp.
+   - Call tokenDenylist.revoke(jti, exp).
+   - Return 204.
+3. Update JwtAuthenticationFilter.
+   - After parsing claims, check tokenDenylist.isRevoked(claims.getId()).
+   - If revoked, clear the SecurityContext and continue the chain.
+4. Update SecurityConfig.
+   - Pass TokenDenylist into the filter constructor.
+   - Do not make logout public.
+
+ALLOWED TO CREATE OR CHANGE
+security/TokenDenylist.java (new)
+security/JwtAuthenticationFilter.java (denylist check and constructor)
+controller/AuthController.java (logout endpoint and dependencies)
+config/SecurityConfig.java (filter wiring only)
+
+RULES
+- Logout must change server state. Do not return a response that only tells the client to delete the token.
+- Key the denylist by jti, not email.
+- Use ConcurrentHashMap.
+- Do not add dependencies.
+- Do not create new error classes.
+- Keep the filter response-free. Clear the context and continue.
+- If something is unclear, add a TODO comment instead of guessing.
+
+OUTPUT
+Each file in full, with its path. Then a list of anything you assumed.
 ```
 
 **Follow-up (if any):**
 
 ```
-(paste here)
+No follow-up was needed. The output matched the contract and review checklist.
 ```

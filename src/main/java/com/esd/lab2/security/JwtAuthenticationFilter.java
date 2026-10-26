@@ -26,9 +26,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final TokenDenylist tokenDenylist;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   TokenDenylist tokenDenylist) {
         this.jwtService = jwtService;
+        this.tokenDenylist = tokenDenylist;
     }
 
     @Override
@@ -48,6 +51,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void authenticate(HttpServletRequest request, String token) {
         try {
             Claims claims = jwtService.parseToken(token);
+            if (tokenDenylist.isRevoked(claims.getId())) {
+                SecurityContextHolder.clearContext();
+                return;
+            }
+
             String role = claims.get("role", String.class);
             if (role == null) {
                 SecurityContextHolder.clearContext();
