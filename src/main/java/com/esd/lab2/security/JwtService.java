@@ -1,6 +1,7 @@
 package com.esd.lab2.security;
 
 import com.esd.lab2.entity.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -44,6 +45,17 @@ public class JwtService {
                 .expiration(Date.from(now.plusSeconds(expirationSeconds)))
                 .signWith(key)
                 .compact();
+    }
+
+    /**
+     * Verifies the signature and expiry, then returns the token claims.
+     */
+    public Claims parseToken(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public long getExpirationSeconds() {

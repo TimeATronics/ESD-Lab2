@@ -31,7 +31,7 @@ Compare against API contract row A1 line by line.
 | Returns **201** | Pass |
 | Response shape: `{ id, email, fullName, role, createdAt }` | Pass |
 | No `passwordHash` field in response | Pass |
-| Role in response is always `STUDENT` | Pass - verified with a request containing `"role":"ADMIN"` |
+| Role in response is always `STUDENT` | Pass: verified with a request containing `"role":"ADMIN"` |
 
 ### C. Validation & Errors
 
@@ -39,7 +39,7 @@ Compare against API contract row A1 line by line.
 |---|---|
 | `@Valid` on controller parameter | Pass |
 | `@Email`, `@NotBlank`, `@Size` on DTO fields | Pass |
-| Duplicate email throws `DuplicateResourceException` | Pass - verified case-insensitive duplicate |
+| Duplicate email throws `DuplicateResourceException` | Pass: verified case-insensitive duplicate |
 | No new error/response wrapper class invented | Pass |
 | No stack trace or exception message leaked to client | Pass |
 
@@ -47,8 +47,8 @@ Compare against API contract row A1 line by line.
 
 | Check | Pass / Fail |
 |---|---|
-| Password hashed via injected `PasswordEncoder` (not `new BCryptPasswordEncoder()`) | Pass - stored hashes start with `$2a$10$` |
-| `SignupRequest` has no `role` field, or it is ignored | Pass - no `role` field; extra JSON property is ignored |
+| Password hashed via injected `PasswordEncoder` (not `new BCryptPasswordEncoder()`) | Pass: stored hashes start with `$2a$10$` |
+| `SignupRequest` has no `role` field, or it is ignored | Pass: no `role` field; extra JSON property is ignored |
 | Duplicate check uses normalised (lowercased/trimmed) email | Pass |
 | AI did **not** touch `SecurityConfig`, add JWT class, or add `UserDetailsService` | Pass |
 
@@ -97,25 +97,25 @@ Compare against API contract row A1 line by line.
 | Path is `POST /api/auth/login` | Pass |
 | Returns **200** | Pass |
 | Response: `{ accessToken, tokenType: "Bearer", expiresIn }` | Pass |
-| `expiresIn` matches configured value (not hardcoded) | Pass - returned 3600, from `jwt.expiration-seconds` |
+| `expiresIn` matches configured value (not hardcoded) | Pass: returned 3600, from `jwt.expiration-seconds` |
 
 ### C. Validation & Errors
 
 | Check | Pass / Fail |
 |---|---|
-| Same 401 message for unknown email and wrong password | Pass - both return `"Invalid email or password"` |
+| Same 401 message for unknown email and wrong password | Pass: both return `"Invalid email or password"` |
 | No `try/catch` swallowing exceptions silently | Pass |
 
 ### D. Security Specifics
 
 | Check | Pass / Fail |
 |---|---|
-| JWT secret comes from `@Value`, no string literal secret | Pass - constructor injection with `@Value("${jwt.secret}")` |
+| JWT secret comes from `@Value`, no string literal secret | Pass: constructor injection with `@Value("${jwt.secret}")` |
 | Uses jjwt 0.12 API: `.subject()`, `.claim()`, `.id()`, `.issuedAt()`, `.expiration()`, `.signWith(key)` | Pass |
-| Rejects deprecated: `setSubject`, `setExpiration`, `signWith(SignatureAlgorithm.HS256, secret)`, `Jwts.parserBuilder()` | Pass - none used |
-| `jti` is a random UUID (not the user id) | Pass - decoded token contains a UUID |
+| Rejects deprecated: `setSubject`, `setExpiration`, `signWith(SignatureAlgorithm.HS256, secret)`, `Jwts.parserBuilder()` | Pass: none used |
+| `jti` is a random UUID (not the user id) | Pass: decoded token contains a UUID |
 | No password or hash in token claims | Pass |
-| Parse/validate method **not** written yet (that is S3) | Pass - `JwtService` only issues tokens |
+| Parse/validate method **not** written yet (that is S3) | Pass: `JwtService` only issues tokens |
 
 ### E. Understanding Questions
 
@@ -149,57 +149,63 @@ Compare against API contract row A1 line by line.
 
 | File / Method | Tag | In Allowed List? |
 |---|---|---|
-| | | |
+| `security/JwtService.java` - `parseToken()` | Security | Yes |
+| `security/JwtAuthenticationFilter.java` - Bearer token filter | Security | Yes |
+| `config/SecurityConfig.java` - `filterChain()` | Config | Yes |
+| `controller/UserController.java` - `me()` | Controller | Yes |
 
 ### B. Contract Check
 
 | Check | Pass / Fail |
 |---|---|
-| `GET /api/courses` works **without** token | |
-| `GET /api/users/me` returns **401** with no token | |
-| `GET /api/users/me` returns **200** with valid token | |
-| 401 body is an `ApiError` JSON object | |
+| `GET /api/courses` works **without** token | Pass |
+| `GET /api/users/me` returns **401** with no token | Pass |
+| `GET /api/users/me` returns **200** with valid token | Pass |
+| 401 body is an `ApiError` JSON object | Pass |
 
 ### C. Validation & Errors
 
 | Check | Pass / Fail |
 |---|---|
-| Filter does not write a response on error - continues chain | |
-| Filter clears SecurityContext on bad token | |
+| Filter does not write a response on error - continues chain | Pass |
+| Filter clears SecurityContext on bad token | Pass |
 
 ### D. Security Specifics
 
 | Check | Pass / Fail |
 |---|---|
-| Spring Security 6 style: lambda DSL, `requestMatchers`, `authorizeHttpRequests` | |
-| Rejected: `WebSecurityConfigurerAdapter`, `antMatchers`, `authorizeRequests`, `.and()` | |
-| `permitAll` covers only the three specific public endpoints | |
-| `GET /api/courses` is public but `POST /api/courses` is NOT (watch for broad matcher) | |
-| Signature + expiry verified with `Jwts.parser().verifyWith(key).build().parseSignedClaims(token)` | |
-| Authorities use `ROLE_` prefix | |
-| Entry point and access-denied handler wired via `exceptionHandling(...)` | |
-| No `UserDetailsService`, `AuthenticationManager`, sessions or CORS added | |
-| `GET /api/users/me` returns `UserResponse`, not the entity | |
+| Spring Security 6 style: lambda DSL, `requestMatchers`, `authorizeHttpRequests` | Pass |
+| Rejected: `WebSecurityConfigurerAdapter`, `antMatchers`, `authorizeRequests`, `.and()` | Pass - none used |
+| `permitAll` covers only the three specific public endpoints | Pass |
+| `GET /api/courses` is public but `POST /api/courses` is NOT (watch for broad matcher) | Pass - POST without a token returns 401 |
+| Signature + expiry verified with `Jwts.parser().verifyWith(key).build().parseSignedClaims(token)` | Pass |
+| Authorities use `ROLE_` prefix | Pass |
+| Entry point and access-denied handler wired via `exceptionHandling(...)` | Pass |
+| No `UserDetailsService`, `AuthenticationManager`, sessions or CORS added | Pass |
+| `GET /api/users/me` returns `UserResponse`, not the entity | Pass |
 
 ### E. Understanding Questions
 
 1. Why is CSRF protection disabled here, and when would disabling it be wrong?
 
-   > *Your answer:*
+   > The API authenticates with a Bearer token in the Authorization header, not with cookies. Browsers do not attach that header automatically. Disabling CSRF would be wrong if authentication used cookies or sessions, because a cross-site request could carry the user's credentials.
 
 2. Walk through what happens to a request with an expired token, step by step, until the client sees 401.
 
-   > *Your answer:*
+   > The filter reads the Bearer token and calls `JwtService.parseToken()`. Signature verification succeeds, but `parseSignedClaims()` throws `ExpiredJwtException`. The filter catches it, clears the SecurityContext, and continues the chain. `AuthorizationFilter` sees an unauthenticated request and lets `ExceptionTranslationFilter` call `JsonAuthenticationEntryPoint`, which writes the 401 ApiError.
 
 3. Why don't 401/403 errors from the filter chain reach `GlobalExceptionHandler`?
 
-   > *Your answer:*
+   > The filter chain runs before the DispatcherServlet, so those errors never reach a controller or `@RestControllerAdvice`. Spring Security handles them with the authentication entry point and access denied handler.
 
 ### F. Decision
 
 | File | Decision | Reason |
 |---|---|---|
-| | | |
+| `security/JwtService.java` | Accepted | `parseToken()` verifies the signature and expiry with jjwt 0.12. |
+| `security/JwtAuthenticationFilter.java` | Accepted | Sets the authentication and `ROLE_` authority, clears context on errors, and continues the chain. |
+| `config/SecurityConfig.java` | Accepted | Only the three public endpoints are open. The chain is stateless and both JSON handlers are wired. |
+| `controller/UserController.java` | Accepted | Loads the user from the token subject and returns `UserResponse`. |
 
 ---
 

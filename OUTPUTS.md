@@ -126,10 +126,10 @@ Content-Type: application/json
 Transfer-Encoding: chunked
 Date: Mon, 26 Oct 2026 11:23:30 GMT
 
-{"accessToken":"<redacted-jwt>","tokenType":"Bearer","expiresIn":3600}
+{"accessToken":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6IjE4OTFlOGFlLWU2ZTktNGY1ZC04Yjg3LTc4MjJiOTM4MDU2NiIsImlhdCI6MTc5MzAxMzgxMCwiZXhwIjoxNzkzMDE3NDEwfQ.eU39Rm_Wqxi15LfrQOdltzkDpZ3F-HQBpdHIbsDRs1U","tokenType":"Bearer","expiresIn":3600}
 ```
 
-The access token is redacted in this file. Decoded header and claims:
+Decoded header and claims:
 
 ```text
 Header:
@@ -236,3 +236,137 @@ Connection: close
 - No password or password hash claim is present.
 - Unknown email and wrong password return the exact same 401 message.
 - `expiresIn` equals the configured 3600 seconds, not a hardcoded number.
+
+---
+
+## Slice 3 - JWT Filter and Protected API
+
+Token used for the valid requests:
+
+```text
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6ImZiMjdkOTYwLTAyNGItNDUyNC1iYTMwLWE2NDNmMzBkNThmMCIsImlhdCI6MTc5MzAxNDE1MSwiZXhwIjoxNzkzMDE3NzUxfQ.As2SWNQB0I7KITOXX9PBJZ8KlaTVens1xNEzmufUsZ0
+```
+
+### 1. GET /api/courses without token - expect 200
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/courses"
+```
+
+```text
+HTTP/1.1 200
+
+[]
+```
+
+### 2. GET /api/courses with an invalid token - expect 200
+
+```cmd
+curl.exe -sS -i -H "Authorization: Bearer not-a-jwt" "http://localhost:8080/api/courses"
+```
+
+```text
+HTTP/1.1 200
+
+[]
+```
+
+### 3. GET /api/users/me without token - expect 401
+
+```cmd
+curl.exe -sS -i "http://localhost:8080/api/users/me"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014152.166168100,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/users/me","fieldErrors":null}
+```
+
+### 4. GET /api/users/me with a garbage token - expect 401
+
+```cmd
+curl.exe -sS -i -H "Authorization: Bearer not-a-jwt" "http://localhost:8080/api/users/me"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014152.314509400,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/users/me","fieldErrors":null}
+```
+
+### 5. GET /api/users/me with a valid token - expect 200
+
+```cmd
+curl.exe -sS -i -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6ImZiMjdkOTYwLTAyNGItNDUyNC1iYTMwLWE2NDNmMzBkNThmMCIsImlhdCI6MTc5MzAxNDE1MSwiZXhwIjoxNzkzMDE3NzUxfQ.As2SWNQB0I7KITOXX9PBJZ8KlaTVens1xNEzmufUsZ0" "http://localhost:8080/api/users/me"
+```
+
+```text
+HTTP/1.1 200
+
+{"id":6,"email":"s1.output@test.com","fullName":"S1 Output","role":"STUDENT","createdAt":"2026-10-26T11:16:21.470817Z"}
+```
+
+### 6. GET /api/users/me with a tampered signature - expect 401
+
+```cmd
+curl.exe -sS -i -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJyb2xlIjoiU1RVREVOVCIsImp0aSI6ImZiMjdkOTYwLTAyNGItNDUyNC1iYTMwLWE2NDNmMzBkNThmMCIsImlhdCI6MTc5MzAxNDE1MSwiZXhwIjoxNzkzMDE3NzUxfQ.As2SWNQB0I7KITOXX9PBJZ8KlaTVens1xNEzmufUsZA" "http://localhost:8080/api/users/me"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014152.514259500,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/users/me","fieldErrors":null}
+```
+
+### 7. GET /api/users/me with an expired token - expect 401
+
+```cmd
+curl.exe -sS -i -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3OTMwMDY5NTEsImV4cCI6MTc5MzAxMDU1MSwicm9sZSI6IlNUVURFTlQiLCJzdWIiOiJzMS5vdXRwdXRAdGVzdC5jb20iLCJqdGkiOiJlNGJlZjkzYy03ZjE0LTQwYmQtOGY4Yy02MzkzMmI5YzhhZDIifQ.hqKjulyWFsxAZiX-_P5sg80fnotJdztgGsW_J990fpw" "http://localhost:8080/api/users/me"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014152.570472400,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/users/me","fieldErrors":null}
+```
+
+### 8. POST /api/courses without token - expect 401
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/courses" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"code\":\"S3X\",\"title\":\"S3\",\"description\":\"test\"}"
+```
+
+```text
+HTTP/1.1 401
+
+{"timestamp":1793014152.705124700,"status":401,"error":"Unauthorized","message":"Authentication required","path":"/api/courses","fieldErrors":null}
+```
+
+### 9. POST /api/auth/signup remains public - expect 201
+
+```cmd
+curl.exe -sS -i -X POST "http://localhost:8080/api/auth/signup" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"s3.public@test.com\",\"password\":\"password1\",\"fullName\":\"S3 Public\"}"
+```
+
+```text
+HTTP/1.1 201
+
+{"id":8,"email":"s3.public@test.com","fullName":"S3 Public","role":"STUDENT","createdAt":"2026-10-26T11:30:18.580653600Z"}
+```
+
+### S3 checks
+
+- Public signup and login still work after the security chain change.
+- Public GET `/api/courses` returns 200 with and without an invalid token.
+- Protected GET `/api/users/me` returns 401 without a valid token.
+- Malformed, tampered, and expired tokens all return 401.
+- A valid token returns 200 with `UserResponse`.
+- The response contains no `passwordHash`.
+- POST `/api/courses` is not public and returns 401 without a token.
+- The 401 response body is an `ApiError` JSON object.
+- The filter does not write the 401 response. The entry point does.

@@ -126,7 +126,7 @@ Each file in full, with its path. Then a list of anything you assumed.
 **Follow-up (if any):**
 
 ```
-None. The implementation matched the contract and review checklist.
+No follow-up was needed. The output matched the contract and review checklist.
 ```
 
 ---
@@ -136,13 +136,78 @@ None. The implementation matched the contract and review checklist.
 **Prompt 1:**
 
 ```
-(paste your prompt here)
+CONTEXT
+Spring Boot 3.2.5, Spring Security 6, Java 17, jjwt 0.12.6. No other libraries.
+Current relevant code:
+- JwtService.generateToken(User) issues HS256 tokens with sub, role, jti, iat, exp.
+- SecurityConfig is temporary and permits all requests.
+- JsonAuthenticationEntryPoint and JsonAccessDeniedHandler are provided.
+- AuthController has signup and login.
+- CourseController has GET and POST /api/courses.
+- UserRepository.findByEmail(String) exists.
+- UserResponse has id, email, fullName, role, createdAt.
+
+TASK
+Implement JWT authentication for protected endpoints.
+Contract:
+  Public:
+    POST /api/auth/signup
+    POST /api/auth/login
+    GET /api/courses
+  Protected:
+    GET /api/users/me
+    All other requests require authentication.
+  GET /api/courses without a token returns 200.
+  GET /api/users/me without a valid token returns 401 with an ApiError JSON body.
+  GET /api/users/me with a valid token returns 200 UserResponse.
+
+Implement:
+1. Add JwtService.parseToken(String) using Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().
+2. Create JwtAuthenticationFilter extends OncePerRequestFilter.
+   - Read Authorization: Bearer <token>.
+   - If absent, continue the chain unchanged.
+   - If present and valid, set UsernamePasswordAuthenticationToken in SecurityContextHolder.
+   - Principal is the token subject (email).
+   - Authority is ROLE_<role>.
+   - On JwtException or IllegalArgumentException, clear the context and continue the chain.
+   - Do not write a response from the filter.
+3. Replace the temporary SecurityConfig.filterChain bean.
+   - CSRF disabled.
+   - Session policy STATELESS.
+   - Permit only POST /api/auth/signup, POST /api/auth/login, GET /api/courses.
+   - All other requests authenticated.
+   - Wire JsonAuthenticationEntryPoint and JsonAccessDeniedHandler via exceptionHandling.
+   - Register the JWT filter before UsernamePasswordAuthenticationFilter.
+   - Construct the filter in SecurityConfig; do not expose it as a separate servlet filter bean.
+4. Create UserController with GET /api/users/me.
+   - Read the email from Authentication.
+   - Load the user by email.
+   - Return UserResponse, never the User entity.
+
+ALLOWED TO CREATE OR CHANGE
+security/JwtService.java (add parseToken only)
+security/JwtAuthenticationFilter.java (new)
+config/SecurityConfig.java (filterChain bean only)
+controller/UserController.java (new)
+
+RULES
+- Do not create or modify any file not listed above.
+- Use Spring Security 6 style only: SecurityFilterChain, lambda DSL, requestMatchers, authorizeHttpRequests.
+- Do not use WebSecurityConfigurerAdapter, antMatchers, authorizeRequests, or .and().
+- Do not add UserDetailsService, AuthenticationManager, sessions, or CORS.
+- Use the existing exceptions and handlers. Do not create new error classes.
+- Use DTOs for responses. Never return an entity from a controller.
+- Filter must not swallow an exception and then authenticate anyway.
+- If something is unclear, add a TODO comment instead of guessing.
+
+OUTPUT
+Each file in full, with its path. Then a list of anything you assumed.
 ```
 
 **Follow-up (if any):**
 
 ```
-(paste here)
+No follow-up was needed. The output matched the contract and review checklist.
 ```
 
 ---
